@@ -138,15 +138,50 @@ pub struct AppleLibraries {
 
 static LIBRARIES: OnceLock<Arc<AppleLibraries>> = OnceLock::new();
 
+fn has_apple_dlls(dir: &std::path::Path) -> bool {
+    dir.join("CoreFoundation.dll").is_file()
+        && dir.join("MobileDevice.dll").is_file()
+        && dir.join("AirTrafficHost.dll").is_file()
+}
+
+/// Finds the folder of the installed "Apple Mobile Device Service" by asking Windows
+/// where the service binary lives. This also covers the Microsoft Store builds of
+/// iTunes / Apple Devices, which are not installed in "Common Files\\Apple".
+fn service_dir() -> Option<PathBuf> {
+    use std::os::windows::process::CommandExt;
+    let out = std::process::Command::new("sc")
+        .args(["qc", "Apple Mobile Device Service"])
+        .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
+        .output()
+        .ok()?;
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    for line in text.lines() {
+        if !line.contains("BINARY_PATH_NAME") {
+            continue;
+        }
+        let rest = line.splitn(2, ':').nth(1)?.trim();
+        let exe_path = if let Some(quoted) = rest.strip_prefix('"') {
+            quoted.split('"').next()?.to_string()
+        } else {
+            let end = rest.to_lowercase().find(".exe")? + 4;
+            rest[..end].to_string()
+        };
+        return PathBuf::from(exe_path).parent().map(|p| p.to_path_buf());
+    }
+    None
+}
+
 pub fn locate_support_dir() -> Option<PathBuf> {
-    APPLE_SUPPORT_DIRS
-        .iter()
-        .map(PathBuf::from)
-        .find(|dir| {
-            dir.join("CoreFoundation.dll").is_file()
-                && dir.join("MobileDevice.dll").is_file()
-                && dir.join("AirTrafficHost.dll").is_file()
-        })
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    // Manual override: set AIRCARD_APPLE_DIR to the folder that holds the Apple DLLs.
+    if let Some(custom) = std::env::var_os("AIRCARD_APPLE_DIR") {
+        candidates.push(PathBuf::from(custom));
+    }
+    candidates.extend(APPLE_SUPPORT_DIRS.iter().map(PathBuf::from));
+    if let Some(dir) = service_dir() {
+        candidates.push(dir);
+    }
+    candidates.into_iter().find(|d| has_apple_dlls(d))
 }
 
 pub fn get_apple_libraries() -> Result<Arc<AppleLibraries>> {
