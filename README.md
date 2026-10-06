@@ -5,6 +5,21 @@
 
 ---
 
+## Compatibility
+
+| iOS Version | Status | Notes |
+| :--- | :--- | :--- |
+| **iOS 18.0 – 27.0.1** | ✅ Supported | Full support for Wallet skins and Lockscreen passcode themes |
+| **iOS 27.2 beta 1 – beta 2** | ✅ Supported | Working |
+| **iOS 27.2 beta 3+** | ❌ Patched | Apple patched the underlying `airlift` exploit. Flashing will not work. |
+
+---
+
+> [!IMPORTANT]
+> Do not update to **iOS 27.2 beta 3 or newer** if you want to continue using AirCard. The underlying AirTraffic sync exploit was patched by Apple in beta 3.
+> 
+
+
 ## Features
 - 🎨 **Custom Card Skins:** Assign custom artwork, textures, or bank logos to Apple Pay and Apple Cash cards.
 - 🔢 **Lock Screen Passcode Themes (.passthm):** Apply custom keypad button artwork from popular Cowabunga & Nugget `.passthm` themes directly to iOS lockscreen.
